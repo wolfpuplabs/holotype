@@ -565,7 +565,7 @@ const DEMO = {
   usdz: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz',
   audio: '',
   video: '',
-  thumbnail: 'https://modelviewer.dev/shared-assets/models/Astronaut.png',
+  thumbnail: 'https://modelviewer.dev/assets/poster-astronaut.png',
   demo: true,
   createdAt: 0,
 };
@@ -680,7 +680,7 @@ function renderLibrary() {
       <button class="del" title="Hapus" aria-label="Hapus aset">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
       </button>
-      <div class="thumb">${a.thumbnail ? `<img src="${a.thumbnail}" alt="" loading="lazy">` : `<div class="ph">NO IMAGE</div>`}</div>
+      <div class="thumb">${a.thumbnail ? `<img src="${a.thumbnail}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'NO IMAGE'}))">` : `<div class="ph">NO IMAGE</div>`}</div>
       <div class="body">
         <div class="name">${escapeHtml(a.name)}</div>
         <div class="badges">${badges}</div>
@@ -1008,14 +1008,14 @@ async function generateThumbnail(glbFile) {
       finally { tmp.remove(); URL.revokeObjectURL(url); }
     };
     tmp.addEventListener('load', finish);
-    setTimeout(finish, 6000); // safety timeout
+    setTimeout(finish, 12000); // safety timeout (heavy models need longer to load)
   });
 }
 
 let uploadModule = null;
 async function getUpload() {
   if (uploadModule) return uploadModule;
-  const mod = await import('https://esm.sh/@vercel/blob@2.5.0/client');
+  const mod = await import('https://esm.sh/@vercel/blob@2.5.0/client?bundle&target=es2022');
   uploadModule = mod.upload;
   return uploadModule;
 }
@@ -1058,22 +1058,47 @@ async function doUpload() {
     add('thumbnail', thumbFile, 'png');
 
     const record = { id, name, glb: '', usdz: '', audio: '', video: '', thumbnail: '', createdAt: Date.now() };
+    const MB = (n) => (n / (1024 * 1024)).toFixed(1);
+    const LARGE = 8 * 1024 * 1024; // ≥8 MB → chunked multipart (parallel + auto-retry)
     let i = 0;
     for (const job of jobs) {
       i++;
-      lbl.textContent = `Mengunggah ${job.key.toUpperCase()} (${i}/${jobs.length})…`;
+      const sizeTxt = `${MB(job.file.size)} MB`;
+      const tag = `${job.key.toUpperCase()} (${i}/${jobs.length}) · ${sizeTxt}`;
+      lbl.textContent = `Mengunggah ${tag}…`;
       const pathname = `${base}/${job.key}.${job.ext}`;
-      const blob = await upload(pathname, job.file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-        contentType: job.file.type || undefined,
-        clientPayload: JSON.stringify({ password: state.password }),
-        onUploadProgress: (e) => {
-          const frac = (i - 1 + (e.percentage || 0) / 100) / jobs.length;
-          setBar(0.05 + frac * 0.85);
-        },
-      });
-      record[job.key] = blob.url;
+
+      // Watchdog: if no progress event arrives for a while, reassure / warn the user
+      // instead of leaving them staring at a frozen bar.
+      let lastTick = Date.now();
+      const started = Date.now();
+      const watch = setInterval(() => {
+        const idle = (Date.now() - lastTick) / 1000;
+        const elapsed = Math.round((Date.now() - started) / 1000);
+        if (idle > 12) {
+          lbl.textContent = `Masih mengunggah ${tag} — file besar lewat koneksi ini bisa lama (${elapsed}s). Jangan tutup tab.`;
+        }
+      }, 4000);
+
+      try {
+        const blob = await upload(pathname, job.file, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          contentType: job.file.type || undefined,
+          clientPayload: JSON.stringify({ password: state.password }),
+          multipart: job.file.size >= LARGE, // chunked, parallel, retries failed parts
+          onUploadProgress: (e) => {
+            lastTick = Date.now();
+            const pct = (e.percentage || 0) / 100;
+            const frac = (i - 1 + pct) / jobs.length;
+            setBar(0.05 + frac * 0.85);
+            lbl.textContent = `Mengunggah ${tag} — ${Math.round((e.percentage || 0))}%`;
+          },
+        });
+        record[job.key] = blob.url;
+      } finally {
+        clearInterval(watch);
+      }
     }
 
     lbl.textContent = 'Menyimpan ke pustaka…'; setBar(0.95);
