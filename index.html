@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>HOLOTYPE — pustaka kartu AR</title>
+<meta name="description" content="Unggah model 3D, jadikan kartu holografik, pindai ke ruang lewat AR." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  :root{
+    --bg:#0A0B0F;
+    --surface:#13151D;
+    --surface-2:#1B1E29;
+    --line:#262A38;
+    --line-soft:#1E2230;
+    --text:#EDEFF5;
+    --muted:#8B92A6;
+    --muted-dim:#5C6376;
+    --violet:#7C6BFF;
+    --cyan:#5EE7FF;
+    --magenta:#FF6BD6;
+    --amber:#FFC46B;
+    --holo:linear-gradient(115deg,#5EE7FF 0%,#7C6BFF 32%,#FF6BD6 64%,#FFC46B 100%);
+    --r:14px;
+    --r-lg:22px;
+    --shadow:0 24px 60px -20px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(124,107,255,.14), transparent 60%),
+      radial-gradient(900px 600px at 6% 4%, rgba(94,231,255,.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:Inter,system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  ::selection{background:rgba(124,107,255,.4)}
+  a{color:inherit}
+  button{font-family:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:6px}
+  .mono{font-family:"Space Mono",monospace}
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:16px clamp(16px,4vw,40px);
+    background:rgba(10,11,15,.72);
+    backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .brand .mark{
+    width:30px;height:30px;border-radius:8px;flex:none;
+    background:var(--holo);
+    box-shadow:0 0 22px -4px rgba(124,107,255,.7);
+    position:relative;
+  }
+  .brand .mark::after{
+    content:"";position:absolute;inset:6px;border-radius:4px;
+    background:var(--bg);
+  }
+  .brand h1{
+    font-family:"Space Grotesk",sans-serif;font-weight:700;
+    font-size:18px;letter-spacing:.14em;margin:0;white-space:nowrap;
+  }
+  .brand .tag{font-size:11px;color:var(--muted);letter-spacing:.04em;margin-top:-2px}
+  .head-actions{display:flex;align-items:center;gap:10px}
+
+  .btn{
+    border:1px solid var(--line);background:var(--surface-2);color:var(--text);
+    padding:9px 15px;border-radius:11px;font-size:13.5px;font-weight:500;
+    display:inline-flex;align-items:center;gap:8px;transition:.16s ease;
+    white-space:nowrap;
+  }
+  .btn:hover{border-color:#39405a;background:#222637;transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn.ghost{background:transparent}
+  .btn.primary{
+    border:none;color:#0A0B0F;font-weight:600;
+    background:var(--holo);background-size:160% 160%;
+    box-shadow:0 8px 26px -10px rgba(124,107,255,.8);
+  }
+  .btn.primary:hover{background-position:100% 50%}
+  .btn.danger{border-color:#5a2a36;color:#ff9bb0;background:#241218}
+  .btn.danger:hover{background:#311722}
+  .btn.sm{padding:7px 11px;font-size:12.5px;border-radius:9px}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;transform:none}
+  .icon{width:16px;height:16px;flex:none}
+
+  /* ---------- hero ---------- */
+  main{padding:clamp(24px,4vw,46px) clamp(16px,4vw,40px) 80px;max-width:1320px;margin:0 auto}
+  .hero{margin-bottom:34px;max-width:720px}
+  .eyebrow{
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.32em;
+    text-transform:uppercase;color:var(--cyan);margin:0 0 14px;
+  }
+  .hero h2{
+    font-family:"Space Grotesk",sans-serif;font-weight:600;
+    font-size:clamp(30px,5.4vw,52px);line-height:1.02;margin:0;letter-spacing:-.01em;
+  }
+  .hero h2 .shine{
+    background:var(--holo);-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero p{color:var(--muted);font-size:clamp(15px,2vw,17px);margin:16px 0 0;max-width:560px}
+
+  .lib-bar{
+    display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+    margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--line-soft);
+  }
+  .lib-bar h3{font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:15px;margin:0;letter-spacing:.02em}
+  .lib-bar .count{font-family:"Space Mono",monospace;font-size:12px;color:var(--muted)}
+
+  /* ---------- library grid ---------- */
+  .grid{
+    display:grid;gap:18px;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  }
+  .tile{
+    background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-lg);
+    overflow:hidden;display:flex;flex-direction:column;transition:.18s ease;position:relative;
+  }
+  .tile:hover{border-color:#333a52;transform:translateY(-3px);box-shadow:var(--shadow)}
+  .tile .thumb{
+    aspect-ratio:1/1;position:relative;overflow:hidden;
+    background:
+      radial-gradient(120% 120% at 30% 20%, rgba(124,107,255,.22), transparent 55%),
+      radial-gradient(120% 120% at 80% 90%, rgba(94,231,255,.16), transparent 50%),
+      #0d0f16;
+  }
+  .tile .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .tile .thumb .ph{
+    position:absolute;inset:0;display:grid;place-items:center;color:var(--muted-dim);
+    font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.2em;
+  }
+  .tile .body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:11px;flex:1}
+  .tile .name{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:15.5px;line-height:1.25;
+    overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .badges{display:flex;flex-wrap:wrap;gap:6px}
+  .badge{
+    font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.14em;
+    padding:3px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted);
+    text-transform:uppercase;
+  }
+  .badge.on{color:#cdd3e4;border-color:#39405a}
+  .badge.glb{color:#bda8ff;border-color:#3a3170}
+  .badge.usdz{color:#9be0ff;border-color:#2a5566}
+  .badge.audio{color:#ffd49b;border-color:#5e4a2a}
+  .badge.video{color:#ff9bd6;border-color:#5e2a4f}
+  .badge.demo{color:#7d8499;border-color:#333a4d}
+  .tile .actions{display:flex;gap:8px;margin-top:auto}
+  .tile .actions .btn{flex:1;justify-content:center}
+  .tile .del{
+    position:absolute;top:10px;right:10px;z-index:2;width:30px;height:30px;padding:0;
+    display:none;align-items:center;justify-content:center;border-radius:9px;
+    background:rgba(10,11,15,.7);border:1px solid var(--line);backdrop-filter:blur(6px);
+  }
+  body.authed .tile:not(.is-demo) .del{display:flex}
+  .tile .del:hover{background:#311722;border-color:#5a2a36;color:#ff9bb0}
+
+  .empty{
+    border:1px dashed var(--line);border-radius:var(--r-lg);padding:54px 24px;text-align:center;
+    color:var(--muted);grid-column:1/-1;
+  }
+  .empty .big{font-family:"Space Grotesk",sans-serif;color:var(--text);font-size:18px;margin-bottom:8px}
+
+  .notice{
+    margin:0 0 18px;padding:11px 14px;border-radius:11px;font-size:13px;
+    border:1px solid #4a3a1e;background:#1d180e;color:#e7c98a;display:none;
+  }
+  .notice.show{display:block}
+
+  /* ---------- modal shell ---------- */
+  .scrim{
+    position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(5,6,9,.74);backdrop-filter:blur(8px);
+  }
+  .scrim.show{display:flex}
+  .modal{
+    background:var(--surface);border:1px solid var(--line);border-radius:24px;
+    width:100%;max-width:480px;max-height:92vh;overflow:auto;box-shadow:var(--shadow);
+    animation:pop .26s cubic-bezier(.2,.9,.3,1.2);
+  }
+  .modal.wide{max-width:760px}
+  @keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:18px 20px;border-bottom:1px solid var(--line-soft);position:sticky;top:0;background:var(--surface);z-index:2}
+  .modal-head h3{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:17px;margin:0}
+  .modal-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .x{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);
+    display:grid;place-items:center;color:var(--muted);flex:none}
+  .x:hover{color:var(--text);background:#242838}
+  .modal-body{padding:20px}
+
+  /* ---------- form ---------- */
+  .field{margin-bottom:16px}
+  .field > label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;letter-spacing:.02em}
+  .field .req{color:var(--magenta)}
+  input[type=text],input[type=password]{
+    width:100%;background:#0d0f16;border:1px solid var(--line);border-radius:11px;
+    color:var(--text);padding:11px 13px;font-size:14px;font-family:inherit;
+  }
+  input:focus{border-color:var(--violet);outline:none}
+  .file{
+    display:flex;align-items:center;gap:11px;background:#0d0f16;border:1px solid var(--line);
+    border-radius:11px;padding:10px 12px;cursor:pointer;transition:.15s;
+  }
+  .file:hover{border-color:#39405a}
+  .file input{display:none}
+  .file .fi{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:none;
+    background:var(--surface-2);color:var(--muted)}
+  .file .ft{min-width:0;flex:1}
+  .file .ft .t{font-size:13.5px;font-weight:500}
+  .file .ft .v{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file.set .fi{background:rgba(124,107,255,.16);color:#bda8ff}
+  .file.set{border-color:#3a3170}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  @media(max-width:520px){.grid2{grid-template-columns:1fr}}
+
+  .progress{margin-top:14px;display:none}
+  .progress.show{display:block}
+  .bar{height:6px;border-radius:99px;background:#0d0f16;overflow:hidden;border:1px solid var(--line)}
+  .bar > i{display:block;height:100%;width:0;background:var(--holo);transition:width .2s}
+  .progress .lbl{font-family:"Space Mono",monospace;font-size:11px;color:var(--muted);margin-top:7px}
+
+  .form-err{color:#ff9bb0;font-size:12.5px;margin-top:10px;min-height:1em}
+
+  /* ---------- viewer ---------- */
+  model-viewer{
+    width:100%;height:min(56vh,440px);background:#0a0c12;border-radius:16px;
+    --poster-color:transparent;display:block;
+  }
+  .viewer-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .viewer-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .viewer-actions .btn{flex:1;min-width:130px;justify-content:center}
+  .ar-hint{font-size:12px;color:var(--muted-dim);margin-top:12px;line-height:1.5}
+
+  /* ---------- flashcard (signature) ---------- */
+  .card-stage{padding:26px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:20px}
+  .flashcard{
+    width:min(330px,82vw);aspect-ratio:3/4;border-radius:22px;position:relative;
+    padding:3px;background:var(--holo);background-size:200% 200%;
+    box-shadow:0 26px 60px -22px rgba(0,0,0,.85), 0 0 40px -16px rgba(124,107,255,.5);
+    transition:transform .15s ease;
+    --mx:50%;--my:40%;
+  }
+  .flashcard .inner{
+    position:relative;height:100%;border-radius:19px;overflow:hidden;
+    background:linear-gradient(180deg,#15171f,#0c0d13);
+    display:flex;flex-direction:column;
+  }
+  .flashcard .foil{
+    position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:19px;mix-blend-mode:screen;
+    background:
+      radial-gradient(120px 120px at var(--mx) var(--my), rgba(255,255,255,.5), transparent 60%),
+      conic-gradient(from 0deg at var(--mx) var(--my),
+        rgba(94,231,255,.32),rgba(124,107,255,.32),rgba(255,107,214,.32),rgba(255,196,107,.32),rgba(94,231,255,.32));
+    opacity:.55;
+  }
+  .flashcard .pic{
+    height:54%;position:relative;overflow:hidden;
+    background:radial-gradient(120% 120% at 30% 20%, rgba(124,107,255,.3), transparent 55%),#0d0f16;
+  }
+  .flashcard .pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .flashcard .pic .ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted-dim);
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.2em}
+  .flashcard .fbar{height:3px;background:var(--holo)}
+  .flashcard .fbody{padding:13px 15px;display:flex;flex-direction:column;gap:9px;flex:1}
+  .flashcard .fname{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:17px;line-height:1.15;
+    overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .flashcard .fmeta{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:auto}
+  .flashcard .qrwrap{background:#fff;padding:6px;border-radius:9px;line-height:0;flex:none}
+  .flashcard .qrwrap canvas{display:block;width:74px;height:74px}
+  .flashcard .fcap{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.16em;color:var(--cyan);
+    text-transform:uppercase;text-align:right}
+  .flashcard .fcap .brand{color:var(--muted);display:block;margin-top:5px;letter-spacing:.22em}
+
+  .link-row{display:flex;gap:8px;width:min(330px,82vw)}
+  .link-row input{flex:1;font-family:"Space Mono",monospace;font-size:11.5px}
+  .card-actions{display:flex;gap:10px;width:min(330px,82vw)}
+  .card-actions .btn{flex:1;justify-content:center}
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:#1c1f2b;border:1px solid var(--line);color:var(--text);
+    padding:11px 18px;border-radius:12px;font-size:13.5px;z-index:80;
+    box-shadow:var(--shadow);opacity:0;transition:.25s;pointer-events:none;max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- xr overlay ---------- */
+  #xr-overlay{position:fixed;inset:0;display:none;pointer-events:none}
+  #xr-overlay.show{display:block}
+  #xr-overlay .xr-top{
+    position:absolute;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    background:rgba(10,11,15,.66);backdrop-filter:blur(8px);border:1px solid var(--line);
+    padding:9px 16px;border-radius:99px;font-size:13px;pointer-events:none;white-space:nowrap;
+  }
+  #xr-overlay .xr-exit{
+    position:absolute;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+    pointer-events:auto;
+  }
+  #xr-root{position:fixed;inset:0;z-index:5}
+
+  .hidden-stage{position:fixed;left:-9999px;top:0;width:512px;height:512px;pointer-events:none;opacity:0}
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.05ms !important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mark" aria-hidden="true"></div>
+    <div>
+      <h1>HOLOTYPE</h1>
+      <div class="tag">pustaka kartu AR</div>
+    </div>
+  </div>
+  <div class="head-actions">
+    <button class="btn" id="btn-upload">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M5 11l7-7 7 7"/><path d="M5 20h14"/></svg>
+      Unggah
+    </button>
+    <button class="btn ghost" id="btn-auth">Masuk</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <p class="eyebrow">webxr · glb + usdz · vercel blob</p>
+    <h2>Unggah model. Jadikan <span class="shine">kartu holografik</span>. Pindai ke ruang.</h2>
+    <p>Simpan aset 3D beserta audio dan video, lalu bagikan tiap aset sebagai kartu yang bisa di-scan QR-nya untuk langsung muncul dalam AR — bahkan dengan video sebagai tekstur di dalam sesi.</p>
+  </section>
+
+  <div class="notice" id="notice"></div>
+
+  <div class="lib-bar">
+    <h3>Pustaka</h3>
+    <span class="count mono" id="count">memuat…</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</main>
+
+<!-- ============ LOGIN MODAL ============ -->
+<div class="scrim" id="m-auth">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="auth-title">Masuk</h3>
+        <div class="sub">Diperlukan untuk mengunggah & menghapus aset</div>
+      </div>
+      <button class="x" data-close aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="auth-pass">Kata sandi</label>
+        <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div class="form-err" id="auth-err"></div>
+      <button class="btn primary" id="auth-go" style="width:100%;justify-content:center">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ UPLOAD MODAL ============ -->
+<div class="scrim" id="m-upload">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="up-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="up-title">Unggah aset</h3>
+        <div class="sub">GLB wajib · sisanya opsional</div>
+      </div>
+      <button class="x" data-close aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="up-name">Nama aset <span class="req">*</span></label>
+        <input type="text" id="up-name" placeholder="mis. Astronaut Klasik" />
+      </div>
+
+      <div class="field">
+        <label>Model 3D <span class="req">*</span></label>
+        <label class="file" id="f-glb">
+          <span class="fi">3D</span>
+          <span class="ft"><span class="t">File GLB (Android / WebXR)</span><span class="v">Pilih .glb</span></span>
+          <input type="file" accept=".glb,model/gltf-binary" data-key="glb" />
+        </label>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>USDZ (iOS)</label>
+          <label class="file" id="f-usdz">
+            <span class="fi">iOS</span>
+            <span class="ft"><span class="t">File USDZ</span><span class="v">Quick Look</span></span>
+            <input type="file" accept=".usdz,model/vnd.usdz+zip" data-key="usdz" />
+          </label>
+        </div>
+        <div class="field">
+          <label>Thumbnail</label>
+          <label class="file" id="f-thumbnail">
+            <span class="fi">IMG</span>
+            <span class="ft"><span class="t">Gambar kartu</span><span class="v">Auto dari model bila kosong</span></span>
+            <input type="file" accept="image/*" data-key="thumbnail" />
+          </label>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Audio</label>
+          <label class="file" id="f-audio">
+            <span class="fi">SND</span>
+            <span class="ft"><span class="t">File audio</span><span class="v">mp3 / wav / ogg</span></span>
+            <input type="file" accept="audio/*" data-key="audio" />
+          </label>
+        </div>
+        <div class="field">
+          <label>Video (tekstur AR)</label>
+          <label class="file" id="f-video">
+            <span class="fi">VID</span>
+            <span class="ft"><span class="t">File video</span><span class="v">mp4 / webm</span></span>
+            <input type="file" accept="video/*" data-key="video" />
+          </label>
+        </div>
+      </div>
+
+      <div class="progress" id="up-progress">
+        <div class="bar"><i id="up-bar"></i></div>
+        <div class="lbl" id="up-lbl">Menyiapkan…</div>
+      </div>
+
+      <div class="form-err" id="up-err"></div>
+      <button class="btn primary" id="up-go" style="width:100%;justify-content:center;margin-top:6px">
+        Simpan ke pustaka
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VIEWER MODAL ============ -->
+<div class="scrim" id="m-viewer">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="v-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="v-title">—</h3>
+        <div class="sub" id="v-sub"></div>
+      </div>
+      <button class="x" data-close aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="v-host"></div>
+      <audio id="v-audio" loop style="display:none"></audio>
+      <div class="viewer-actions">
+        <button class="btn primary" id="v-ar">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 22V12"/></svg>
+          Lihat di AR
+        </button>
+        <button class="btn" id="v-audio-btn" style="display:none">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>
+          Putar audio
+        </button>
+        <button class="btn" id="v-vidar" style="display:none">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/></svg>
+          AR + Video
+        </button>
+        <button class="btn" id="v-card">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+          Buka kartu
+        </button>
+      </div>
+      <p class="ar-hint" id="v-hint"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FLASHCARD MODAL ============ -->
+<div class="scrim" id="m-card">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="c-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="c-title">Kartu</h3>
+        <div class="sub">Pindai untuk membuka di AR</div>
+      </div>
+      <button class="x" data-close aria-label="Tutup">✕</button>
+    </div>
+    <div class="card-stage">
+      <div class="flashcard" id="flashcard">
+        <div class="inner">
+          <div class="foil"></div>
+          <div class="pic" id="c-pic"></div>
+          <div class="fbar"></div>
+          <div class="fbody">
+            <div class="fname" id="c-name">—</div>
+            <div class="badges" id="c-badges"></div>
+            <div class="fmeta">
+              <div class="qrwrap"><canvas id="c-qr"></canvas></div>
+              <div class="fcap">scan to<br>view in AR<span class="brand">HOLOTYPE</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="link-row">
+        <input type="text" id="c-link" readonly />
+        <button class="btn sm" id="c-copy">Salin</button>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn primary" id="c-save">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Simpan ke Foto
+        </button>
+        <button class="btn" id="c-open">Buka viewer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- XR session UI -->
+<div id="xr-root"></div>
+<div id="xr-overlay">
+  <div class="xr-top" id="xr-msg">Arahkan ke permukaan, lalu ketuk untuk menempatkan</div>
+  <button class="btn danger xr-exit" id="xr-exit">Akhiri AR</button>
+</div>
+
+<div id="toast"></div>
+<div class="hidden-stage" id="hidden-stage" aria-hidden="true"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/* ---------------- demo asset (works before any upload) ---------------- */
+const DEMO = {
+  id: 'demo-astronaut',
+  name: 'Astronaut (contoh)',
+  glb: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+  usdz: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz',
+  audio: '',
+  video: '',
+  thumbnail: 'https://modelviewer.dev/shared-assets/models/Astronaut.png',
+  demo: true,
+  createdAt: 0,
+};
+
+/* ---------------- state ---------------- */
+const state = { assets: [], password: null, current: null };
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ---------------- toast ---------------- */
+let toastT;
+function toast(msg, ms = 2600) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* ---------------- modal helpers ---------------- */
+function open(id) { $('#' + id).classList.add('show'); }
+function close(id) { $('#' + id).classList.remove('show'); }
+$$('.scrim').forEach((s) => {
+  s.addEventListener('click', (e) => { if (e.target === s) s.classList.remove('show'); });
+  $$('[data-close]', s).forEach((b) => b.addEventListener('click', () => s.classList.remove('show')));
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') $$('.scrim.show').forEach((s) => s.classList.remove('show'));
+});
+
+/* ---------------- auth ---------------- */
+function setAuthed(on) {
+  document.body.classList.toggle('authed', on);
+  $('#btn-auth').textContent = on ? 'Keluar' : 'Masuk';
+}
+$('#btn-auth').addEventListener('click', () => {
+  if (state.password) { state.password = null; setAuthed(false); toast('Keluar'); }
+  else { $('#auth-err').textContent = ''; $('#auth-pass').value = ''; open('m-auth'); setTimeout(() => $('#auth-pass').focus(), 50); }
+});
+$('#auth-go').addEventListener('click', tryAuth);
+$('#auth-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryAuth(); });
+async function tryAuth() {
+  const pass = $('#auth-pass').value;
+  if (!pass) { $('#auth-err').textContent = 'Masukkan kata sandi.'; return; }
+  // Validate by attempting a no-op authorized check: we post an invalid asset and
+  // read the status — 400 means password OK (bad asset), 401 means wrong password.
+  $('#auth-go').disabled = true; $('#auth-go').textContent = 'Memeriksa…';
+  try {
+    const r = await fetch('/api/library', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pass, asset: { ping: true } }),
+    });
+    if (r.status === 401) { $('#auth-err').textContent = 'Kata sandi salah.'; return; }
+    // 400 (invalid asset) or 200 both imply the password was accepted.
+    state.password = pass;
+    setAuthed(true);
+    close('m-auth');
+    toast('Berhasil masuk');
+  } catch (_) {
+    $('#auth-err').textContent = 'Tidak bisa menghubungi server. Apakah sudah di-deploy?';
+  } finally {
+    $('#auth-go').disabled = false; $('#auth-go').textContent = 'Masuk';
+  }
+}
+
+/* ---------------- library load / render ---------------- */
+async function loadLibrary() {
+  let remote = [];
+  let backendOk = false;
+  try {
+    const r = await fetch('/api/library', { cache: 'no-store' });
+    if (r.ok) { const d = await r.json(); remote = Array.isArray(d.assets) ? d.assets : []; backendOk = true; }
+  } catch (_) { /* offline / not deployed */ }
+
+  const notice = $('#notice');
+  if (!backendOk) {
+    notice.textContent = 'Mode pratinjau — backend Vercel Blob belum aktif. Unggah & simpan permanen aktif setelah aplikasi ini di-deploy ke Vercel dengan Blob store. Kartu contoh di bawah tetap bisa dicoba.';
+    notice.classList.add('show');
+  } else {
+    notice.classList.remove('show');
+  }
+
+  // Demo always first, never duplicated by a real upload sharing its id.
+  const seen = new Set();
+  state.assets = [DEMO, ...remote].filter((a) => a && a.id && !seen.has(a.id) && seen.add(a.id));
+  renderLibrary();
+  maybeDeepLink();
+}
+
+function flags(a) {
+  return [
+    a.glb && { c: 'glb', t: 'GLB' },
+    a.usdz && { c: 'usdz', t: 'USDZ' },
+    a.audio && { c: 'audio', t: 'AUDIO' },
+    a.video && { c: 'video', t: 'VIDEO' },
+    a.demo && { c: 'demo', t: 'DEMO' },
+  ].filter(Boolean);
+}
+
+function renderLibrary() {
+  const grid = $('#grid');
+  const real = state.assets.filter((a) => !a.demo).length;
+  $('#count').textContent = real === 0 ? '1 contoh' : `${real} aset`;
+  grid.innerHTML = '';
+
+  state.assets.forEach((a) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile' + (a.demo ? ' is-demo' : '');
+    const badges = flags(a).map((f) => `<span class="badge ${f.c}">${f.t}</span>`).join('');
+    tile.innerHTML = `
+      <button class="del" title="Hapus" aria-label="Hapus aset">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+      </button>
+      <div class="thumb">${a.thumbnail ? `<img src="${a.thumbnail}" alt="" loading="lazy">` : `<div class="ph">NO IMAGE</div>`}</div>
+      <div class="body">
+        <div class="name">${escapeHtml(a.name)}</div>
+        <div class="badges">${badges}</div>
+        <div class="actions">
+          <button class="btn sm act-view">Lihat</button>
+          <button class="btn sm act-share">Bagikan</button>
+        </div>
+      </div>`;
+    $('.act-view', tile).addEventListener('click', () => openViewer(a));
+    $('.act-share', tile).addEventListener('click', () => openCard(a));
+    $('.thumb', tile).addEventListener('click', () => openViewer(a));
+    $('.del', tile).addEventListener('click', (e) => { e.stopPropagation(); deleteAsset(a); });
+    grid.appendChild(tile);
+  });
+
+  if (state.assets.length === 0) {
+    grid.innerHTML = `<div class="empty"><div class="big">Belum ada aset</div>Masuk, lalu unggah file GLB pertamamu.</div>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------------- viewer ---------------- */
+const vHost = $('#v-host');
+let mv = null;
+function openViewer(a) {
+  state.current = a;
+  $('#v-title').textContent = a.name;
+  $('#v-sub').textContent = flags(a).map((f) => f.t).join(' · ');
+
+  vHost.innerHTML = '';
+  mv = document.createElement('model-viewer');
+  mv.setAttribute('src', a.glb || '');
+  if (a.usdz) mv.setAttribute('ios-src', a.usdz);
+  mv.setAttribute('camera-controls', '');
+  mv.setAttribute('touch-action', 'pan-y');
+  mv.setAttribute('shadow-intensity', '1');
+  mv.setAttribute('exposure', '1');
+  mv.setAttribute('ar', '');
+  mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+  mv.setAttribute('environment-image', 'neutral');
+  mv.setAttribute('poster', a.thumbnail || '');
+  vHost.appendChild(mv);
+
+  // AR button → trigger model-viewer's native AR (handles iOS Quick Look + Android Scene Viewer/WebXR)
+  $('#v-ar').onclick = () => {
+    try { mv.activateAR(); }
+    catch (e) { toast('AR tidak tersedia di perangkat / browser ini'); }
+  };
+
+  // audio
+  const audio = $('#v-audio');
+  const aBtn = $('#v-audio-btn');
+  if (a.audio) {
+    audio.src = a.audio;
+    audio.pause(); audio.currentTime = 0;
+    aBtn.style.display = '';
+    aBtn.innerHTML = audioIcon('Putar audio');
+    let playing = false;
+    aBtn.onclick = () => {
+      if (playing) { audio.pause(); aBtn.innerHTML = audioIcon('Putar audio'); }
+      else { audio.play().catch(() => toast('Gagal memutar audio')); aBtn.innerHTML = audioIcon('Jeda audio'); }
+      playing = !playing;
+    };
+  } else { aBtn.style.display = 'none'; audio.removeAttribute('src'); }
+
+  // video-as-texture AR (WebXR / Android)
+  const vBtn = $('#v-vidar');
+  if (a.video) { vBtn.style.display = ''; vBtn.onclick = () => startVideoAR(a); }
+  else vBtn.style.display = 'none';
+
+  $('#v-card').onclick = () => { close('m-viewer'); openCard(a); };
+
+  $('#v-hint').textContent = hintFor(a);
+  open('m-viewer');
+}
+function audioIcon(label) {
+  return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>${label}`;
+}
+function hintFor(a) {
+  const bits = ['Android membuka WebXR / Scene Viewer, iOS membuka Quick Look (butuh USDZ).'];
+  if (a.audio) bits.push('Audio diputar di tampilan web ini.');
+  if (a.video) bits.push('“AR + Video” menempatkan video sebagai tekstur lewat WebXR (Android / perangkat yang mendukung).');
+  return bits.join(' ');
+}
+// stop audio whenever viewer closes
+$('#m-viewer').addEventListener('click', (e) => { if (e.target.id === 'm-viewer') stopViewerMedia(); });
+$$('#m-viewer [data-close]').forEach((b) => b.addEventListener('click', stopViewerMedia));
+function stopViewerMedia() { const a = $('#v-audio'); a.pause(); }
+
+/* ---------------- flashcard ---------------- */
+let cardAsset = null;
+function shareUrl(a) {
+  return `${location.origin}${location.pathname}?asset=${encodeURIComponent(a.id)}`;
+}
+function openCard(a) {
+  cardAsset = a;
+  $('#c-title').textContent = a.name;
+  $('#c-name').textContent = a.name;
+  $('#c-pic').innerHTML = a.thumbnail
+    ? `<img src="${a.thumbnail}" alt="" crossorigin="anonymous">`
+    : `<div class="ph">NO IMAGE</div>`;
+  $('#c-badges').innerHTML = flags(a).filter((f) => f.t !== 'DEMO').map((f) => `<span class="badge ${f.c}">${f.t}</span>`).join('');
+  const url = shareUrl(a);
+  $('#c-link').value = url;
+
+  // render QR into the card
+  try {
+    QRCode.toCanvas($('#c-qr'), url, { width: 74, margin: 0, color: { dark: '#0A0B0F', light: '#ffffff' } }, () => {});
+  } catch (_) {}
+
+  $('#c-copy').onclick = () => copyText(url, 'Tautan disalin');
+  $('#c-open').onclick = () => { close('m-card'); openViewer(a); };
+  $('#c-save').onclick = () => saveCardImage(a);
+  open('m-card');
+}
+// holo foil follows pointer
+const fc = $('#flashcard');
+fc.addEventListener('pointermove', (e) => {
+  const r = fc.getBoundingClientRect();
+  fc.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+  fc.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+});
+fc.addEventListener('pointerleave', () => { fc.style.setProperty('--mx', '50%'); fc.style.setProperty('--my', '40%'); });
+
+function copyText(text, ok) {
+  navigator.clipboard?.writeText(text).then(() => toast(ok)).catch(() => {
+    const i = $('#c-link'); i.select(); document.execCommand('copy'); toast(ok);
+  });
+}
+
+/* ---------- compose flashcard PNG & save to Photos ---------- */
+function loadImage(src, cors) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    if (cors) img.crossOrigin = 'anonymous';
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+async function composeCard(a, thumbImg) {
+  const W = 1080, H = 1440;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  // holo border
+  const hb = ctx.createLinearGradient(0, 0, W, H);
+  hb.addColorStop(0, '#5EE7FF'); hb.addColorStop(.34, '#7C6BFF'); hb.addColorStop(.66, '#FF6BD6'); hb.addColorStop(1, '#FFC46B');
+  ctx.fillStyle = hb; roundRect(ctx, 0, 0, W, H, 60); ctx.fill();
+
+  // inner
+  const pad = 26;
+  const ig = ctx.createLinearGradient(0, pad, 0, H);
+  ig.addColorStop(0, '#15171f'); ig.addColorStop(1, '#0b0c12');
+  ctx.fillStyle = ig; roundRect(ctx, pad, pad, W - pad * 2, H - pad * 2, 44); ctx.fill();
+
+  // picture area
+  const px = pad + 30, py = pad + 30, pw = W - (pad + 30) * 2, ph = 700;
+  ctx.save(); roundRect(ctx, px, py, pw, ph, 30); ctx.clip();
+  if (thumbImg) {
+    const s = Math.max(pw / thumbImg.width, ph / thumbImg.height);
+    const dw = thumbImg.width * s, dh = thumbImg.height * s;
+    ctx.drawImage(thumbImg, px + (pw - dw) / 2, py + (ph - dh) / 2, dw, dh);
+  } else {
+    const g = ctx.createRadialGradient(px + pw * .35, py + ph * .3, 50, px + pw * .35, py + ph * .3, pw);
+    g.addColorStop(0, 'rgba(124,107,255,.45)'); g.addColorStop(1, '#0d0f16');
+    ctx.fillStyle = g; ctx.fillRect(px, py, pw, ph);
+    ctx.fillStyle = '#5C6376'; ctx.font = '600 34px "Space Mono", monospace'; ctx.textAlign = 'center';
+    ctx.fillText('NO IMAGE', px + pw / 2, py + ph / 2);
+  }
+  ctx.restore();
+
+  // holo bar under image
+  ctx.fillStyle = hb; ctx.fillRect(px, py + ph + 18, pw, 8);
+
+  // name
+  ctx.textAlign = 'left'; ctx.fillStyle = '#EDEFF5';
+  ctx.font = '700 60px "Space Grotesk", sans-serif';
+  wrapText(ctx, a.name, px, py + ph + 100, pw - 20, 66, 2);
+
+  // QR (generated locally → never taints canvas)
+  const qCanvas = document.createElement('canvas');
+  await new Promise((r) => QRCode.toCanvas(qCanvas, shareUrl(a), { width: 300, margin: 1, color: { dark: '#0A0B0F', light: '#ffffff' } }, r));
+  const qx = px, qy = H - pad - 30 - 300;
+  ctx.fillStyle = '#ffffff'; roundRect(ctx, qx - 16, qy - 16, 332, 332, 22); ctx.fill();
+  ctx.drawImage(qCanvas, qx, qy, 300, 300);
+
+  // caption
+  ctx.fillStyle = '#5EE7FF'; ctx.font = '700 30px "Space Mono", monospace';
+  ctx.fillText('SCAN TO VIEW IN AR', qx + 360, qy + 60);
+  ctx.fillStyle = '#8B92A6'; ctx.font = '400 24px "Space Mono", monospace';
+  ctx.fillText('HOLOTYPE', qx + 360, qy + 104);
+  const tags = flags(a).filter((f) => f.t !== 'DEMO').map((f) => f.t).join('  ·  ');
+  ctx.fillStyle = '#8B92A6'; ctx.font = '400 22px Inter, sans-serif';
+  ctx.fillText(tags, qx + 360, qy + 150);
+
+  return cv;
+}
+function wrapText(ctx, text, x, y, maxW, lh, maxLines) {
+  const words = String(text).split(' '); let line = '', lines = [];
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  lines = lines.slice(0, maxLines);
+  lines.forEach((l, i) => {
+    if (i === maxLines - 1 && lines.length === maxLines && ctx.measureText(l).width > maxW) {
+      while (ctx.measureText(l + '…').width > maxW && l.length) l = l.slice(0, -1);
+      l += '…';
+    }
+    ctx.fillText(l, x, y + i * lh);
+  });
+}
+async function saveCardImage(a) {
+  toast('Membuat kartu…', 1400);
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (_) {}
+  let thumb = null;
+  if (a.thumbnail) { try { thumb = await loadImage(a.thumbnail, true); } catch (_) { thumb = null; } }
+  let canvas;
+  try { canvas = await composeCard(a, thumb); }
+  catch (_) { canvas = await composeCard(a, null); }
+
+  let blob;
+  try { blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej()), 'image/png')); }
+  catch (_) {
+    // tainted by a non-CORS thumbnail → rebuild without it
+    canvas = await composeCard(a, null);
+    blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+  }
+
+  const file = new File([blob], `holotype-${slug(a.name)}.png`, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: a.name, text: 'Kartu AR — pindai untuk melihat di ruang' });
+      return;
+    } catch (_) { /* user cancelled → fall through to download */ }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = file.name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('Kartu diunduh');
+}
+function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'card'; }
+
+/* ---------------- delete ---------------- */
+async function deleteAsset(a) {
+  if (a.demo) return;
+  if (!state.password) { toast('Masuk dulu untuk menghapus'); open('m-auth'); return; }
+  if (!confirm(`Hapus "${a.name}" beserta filenya?`)) return;
+  try {
+    const r = await fetch('/api/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: state.password, id: a.id }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal menghapus');
+    toast('Aset dihapus');
+    await loadLibrary();
+  } catch (e) { toast(e.message); }
+}
+
+/* ---------------- upload ---------------- */
+const picked = { glb: null, usdz: null, audio: null, video: null, thumbnail: null };
+$$('#m-upload .file input').forEach((inp) => {
+  inp.addEventListener('change', () => {
+    const key = inp.dataset.key;
+    const f = inp.files[0] || null;
+    picked[key] = f;
+    const box = inp.closest('.file');
+    box.classList.toggle('set', !!f);
+    if (f) $('.v', box).textContent = f.name;
+  });
+});
+$('#btn-upload').addEventListener('click', () => {
+  if (!state.password) { toast('Masuk dulu untuk mengunggah'); open('m-auth'); setTimeout(() => $('#auth-pass').focus(), 60); return; }
+  resetUpload(); open('m-upload');
+});
+function resetUpload() {
+  $('#up-name').value = ''; $('#up-err').textContent = '';
+  $('#up-progress').classList.remove('show'); $('#up-bar').style.width = '0%';
+  Object.keys(picked).forEach((k) => (picked[k] = null));
+  $$('#m-upload .file').forEach((b) => { b.classList.remove('set'); });
+  $$('#m-upload .file input').forEach((i) => (i.value = ''));
+  $('#f-glb .v').textContent = 'Pilih .glb';
+  $('#f-usdz .v').textContent = 'Quick Look';
+  $('#f-thumbnail .v').textContent = 'Auto dari model bila kosong';
+  $('#f-audio .v').textContent = 'mp3 / wav / ogg';
+  $('#f-video .v').textContent = 'mp4 / webm';
+}
+
+async function generateThumbnail(glbFile) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(glbFile);
+    const stage = $('#hidden-stage');
+    const tmp = document.createElement('model-viewer');
+    tmp.setAttribute('src', url);
+    tmp.setAttribute('environment-image', 'neutral');
+    tmp.setAttribute('shadow-intensity', '1');
+    tmp.setAttribute('camera-orbit', '35deg 75deg auto');
+    tmp.style.width = '512px'; tmp.style.height = '512px';
+    stage.appendChild(tmp);
+    let done = false;
+    const finish = async () => {
+      if (done) return; done = true;
+      try {
+        await new Promise((r) => setTimeout(r, 350)); // let it settle
+        const blob = await tmp.toBlob({ mimeType: 'image/png', idealAspect: true });
+        resolve(blob);
+      } catch (_) { resolve(null); }
+      finally { tmp.remove(); URL.revokeObjectURL(url); }
+    };
+    tmp.addEventListener('load', finish);
+    setTimeout(finish, 6000); // safety timeout
+  });
+}
+
+let uploadModule = null;
+async function getUpload() {
+  if (uploadModule) return uploadModule;
+  const mod = await import('https://esm.sh/@vercel/blob@2.5.0/client');
+  uploadModule = mod.upload;
+  return uploadModule;
+}
+
+$('#up-go').addEventListener('click', doUpload);
+async function doUpload() {
+  const name = $('#up-name').value.trim();
+  const err = $('#up-err'); err.textContent = '';
+  if (!name) { err.textContent = 'Beri nama aset.'; return; }
+  if (!picked.glb) { err.textContent = 'File GLB wajib diunggah.'; return; }
+  if (!state.password) { err.textContent = 'Sesi berakhir — masuk lagi.'; return; }
+
+  const go = $('#up-go'); go.disabled = true;
+  const prog = $('#up-progress'); prog.classList.add('show');
+  const bar = $('#up-bar'); const lbl = $('#up-lbl');
+  const setBar = (p, t) => { bar.style.width = Math.round(p * 100) + '%'; if (t) lbl.textContent = t; };
+
+  try {
+    let upload;
+    try { upload = await getUpload(); }
+    catch (_) { throw new Error('Gagal memuat pengunggah. Cek koneksi / deploy.'); }
+
+    // auto thumbnail if none chosen
+    let thumbFile = picked.thumbnail;
+    if (!thumbFile) {
+      setBar(0.04, 'Membuat thumbnail dari model…');
+      const tb = await generateThumbnail(picked.glb);
+      if (tb) thumbFile = new File([tb], 'thumb.png', { type: 'image/png' });
+    }
+
+    const id = 'a_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const base = `assets/${id}`;
+    const jobs = [];
+    const order = [];
+    const add = (key, file, ext) => { if (file) { jobs.push({ key, file, ext }); order.push(key); } };
+    add('glb', picked.glb, 'glb');
+    add('usdz', picked.usdz, 'usdz');
+    add('audio', picked.audio, extOf(picked.audio));
+    add('video', picked.video, extOf(picked.video));
+    add('thumbnail', thumbFile, 'png');
+
+    const record = { id, name, glb: '', usdz: '', audio: '', video: '', thumbnail: '', createdAt: Date.now() };
+    let i = 0;
+    for (const job of jobs) {
+      i++;
+      lbl.textContent = `Mengunggah ${job.key.toUpperCase()} (${i}/${jobs.length})…`;
+      const pathname = `${base}/${job.key}.${job.ext}`;
+      const blob = await upload(pathname, job.file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+        contentType: job.file.type || undefined,
+        clientPayload: JSON.stringify({ password: state.password }),
+        onUploadProgress: (e) => {
+          const frac = (i - 1 + (e.percentage || 0) / 100) / jobs.length;
+          setBar(0.05 + frac * 0.85);
+        },
+      });
+      record[job.key] = blob.url;
+    }
+
+    lbl.textContent = 'Menyimpan ke pustaka…'; setBar(0.95);
+    const r = await fetch('/api/library', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: state.password, asset: record }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal menyimpan ke pustaka');
+
+    setBar(1, 'Selesai!');
+    toast('Aset tersimpan');
+    setTimeout(async () => { close('m-upload'); await loadLibrary(); }, 500);
+  } catch (e) {
+    err.textContent = e.message || 'Terjadi kesalahan saat mengunggah.';
+    prog.classList.remove('show');
+  } finally {
+    go.disabled = false;
+  }
+}
+function extOf(file) {
+  if (!file) return 'bin';
+  const m = file.name.match(/\.([a-z0-9]+)$/i);
+  return m ? m[1].toLowerCase() : (file.type.split('/')[1] || 'bin');
+}
+
+/* ---------------- WebXR: video as texture ---------------- */
+let xr = null;
+async function startVideoAR(a) {
+  if (!a.video) { toast('Aset ini tidak punya video'); return; }
+  if (!navigator.xr) { toast('WebXR tidak didukung. Coba "Lihat di AR".'); return; }
+  let supported = false;
+  try { supported = await navigator.xr.isSessionSupported('immersive-ar'); } catch (_) {}
+  if (!supported) { toast('AR WebXR tak tersedia di sini. iOS: pakai "Lihat di AR" (Quick Look).'); return; }
+
+  const overlay = $('#xr-overlay');
+  const root = $('#xr-root');
+
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: false });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  root.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 40);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x335577, 1.1));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.0); dir.position.set(1, 3, 1); scene.add(dir);
+
+  // reticle
+  const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x5ee7ff })
+  );
+  reticle.matrixAutoUpdate = false; reticle.visible = false; scene.add(reticle);
+
+  // video texture
+  const video = document.createElement('video');
+  video.src = a.video; video.loop = true; video.crossOrigin = 'anonymous';
+  video.playsInline = true; video.setAttribute('playsinline', ''); video.preload = 'auto';
+  const vTex = new THREE.VideoTexture(video);
+  vTex.colorSpace = THREE.SRGBColorSpace;
+
+  // load model (optional)
+  let model = null;
+  if (a.glb) {
+    try {
+      const gltf = await new GLTFLoader().loadAsync(a.glb);
+      model = gltf.scene;
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const s = 0.4 / (Math.max(size.x, size.y, size.z) || 1);
+      model.scale.setScalar(s);
+      const c = box.getCenter(new THREE.Vector3());
+      model.position.sub(c.multiplyScalar(s));
+    } catch (_) { model = null; }
+  }
+
+  let placed = null;
+  function buildContent() {
+    const group = new THREE.Group();
+    // video plane (16:9, ~0.5m wide), standing upright
+    const ratio = (video.videoWidth && video.videoHeight) ? video.videoHeight / video.videoWidth : 9 / 16;
+    const w = 0.5, h = w * ratio;
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ map: vTex, toneMapped: false, side: THREE.DoubleSide })
+    );
+    plane.position.y = h / 2 + (model ? 0.42 : 0.0);
+    group.add(plane);
+    if (model) { const m = model.clone(true); group.add(m); }
+    return group;
+  }
+
+  let session;
+  try {
+    session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay', 'local-floor'],
+      domOverlay: { root: overlay },
+    });
+  } catch (e) { cleanup(); toast('Tidak bisa memulai sesi AR'); return; }
+
+  overlay.classList.add('show');
+  $('#xr-msg').textContent = 'Arahkan ke permukaan, lalu ketuk untuk menempatkan';
+  await renderer.xr.setReferenceSpaceType('local');
+  await renderer.xr.setSession(session);
+
+  const viewerSpace = await session.requestReferenceSpace('viewer');
+  const localSpace = await session.requestReferenceSpace('local');
+  let hitSource = null;
+  try { hitSource = await session.requestHitTestSource({ space: viewerSpace }); } catch (_) {}
+
+  const controller = renderer.xr.getController(0);
+  controller.addEventListener('select', onSelect);
+  scene.add(controller);
+
+  function onSelect() {
+    if (!reticle.visible || placed) return;
+    placed = buildContent();
+    placed.position.setFromMatrixPosition(reticle.matrix);
+    // face the user roughly
+    const camPos = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
+    placed.lookAt(camPos.x, placed.position.y, camPos.z);
+    scene.add(placed);
+    reticle.visible = false;
+    video.muted = false;
+    video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
+    $('#xr-msg').textContent = 'Video diputar — ketuk untuk berinteraksi';
+    setTimeout(() => { overlay.querySelector('.xr-top').style.opacity = '0'; }, 2500);
+  }
+
+  renderer.setAnimationLoop((t, frame) => {
+    if (frame && hitSource && !placed) {
+      const results = frame.getHitTestResults(hitSource);
+      if (results.length) {
+        const pose = results[0].getPose(localSpace);
+        if (pose) { reticle.visible = true; reticle.matrix.fromArray(pose.transform.matrix); }
+      } else reticle.visible = false;
+    }
+    renderer.render(scene, camera);
+  });
+
+  $('#xr-exit').onclick = () => session.end();
+  session.addEventListener('end', cleanup);
+
+  function cleanup() {
+    try { renderer.setAnimationLoop(null); } catch (_) {}
+    try { video.pause(); } catch (_) {}
+    overlay.classList.remove('show');
+    overlay.querySelector('.xr-top').style.opacity = '';
+    try { root.removeChild(renderer.domElement); } catch (_) {}
+    try { renderer.dispose(); } catch (_) {}
+    xr = null;
+  }
+  xr = { session, cleanup };
+}
+
+/* ---------------- deep link ?asset= ---------------- */
+function maybeDeepLink() {
+  const id = new URLSearchParams(location.search).get('asset');
+  if (!id) return;
+  const a = state.assets.find((x) => x.id === id);
+  if (a) openCard(a);
+}
+
+/* ---------------- boot ---------------- */
+loadLibrary();
+</script>
+</body>
+</html>

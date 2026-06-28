@@ -1,0 +1,13 @@
+{
+  "name": "holotype-ar-cards",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WebXR AR asset library with shareable holographic flashcards, backed by Vercel Blob.",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.5.0"
+  }
+}
