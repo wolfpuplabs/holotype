@@ -620,6 +620,13 @@ async function tryAuth() {
       body: JSON.stringify({ password: pass, asset: { ping: true } }),
     });
     if (r.status === 401) { $('#auth-err').textContent = 'Kata sandi salah.'; return; }
+    if (r.status !== 200 && r.status !== 400) {
+      // 400 = invalid ping asset (expected, password OK). Anything else (e.g. 500)
+      // means the server/Blob store is misconfigured — don't fake a successful login.
+      const d = await r.json().catch(() => ({}));
+      $('#auth-err').textContent = d.error || `Server error (${r.status}). Cek Blob store & env di Vercel.`;
+      return;
+    }
     // 400 (invalid asset) or 200 both imply the password was accepted.
     state.password = pass;
     setAuthed(true);
@@ -630,6 +637,26 @@ async function tryAuth() {
   } finally {
     $('#auth-go').disabled = false; $('#auth-go').textContent = 'Masuk';
   }
+}
+
+/* ---------------- backend health check ---------------- */
+async function checkHealth() {
+  const notice = $('#notice');
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    if (!r.ok) return;
+    const h = await r.json();
+    let msg = '';
+    if (!h.hasBlobToken) {
+      msg = 'Blob store belum terhubung ke project ini (BLOB_READ_WRITE_TOKEN tidak ada). Di Vercel: buka Blob store → Connect Project → pilih project ini, lalu Redeploy.';
+    } else if (!h.blobOk) {
+      msg = `Token Blob ada tapi gagal dipakai${h.blobError ? ' — ' + h.blobError : ''}. Pastikan store terhubung ke environment yang benar (Production), lalu Redeploy.`;
+    } else if (!h.hasPassword) {
+      msg = 'APP_PASSWORD belum di-set. Tambahkan di Vercel → Settings → Environment Variables, lalu Redeploy. Tanpa ini, login & unggah tidak bisa.';
+    }
+    if (msg) { notice.textContent = msg; notice.classList.add('show'); }
+    else notice.classList.remove('show');
+  } catch (_) { /* ignore — non-fatal diagnostic */ }
 }
 
 /* ---------------- library load / render ---------------- */
@@ -647,6 +674,7 @@ async function loadLibrary() {
     notice.classList.add('show');
   } else {
     notice.classList.remove('show');
+    checkHealth(); // verify the Blob token actually works, not just that the API responds
   }
 
   // Demo always first, never duplicated by a real upload sharing its id.
@@ -1059,45 +1087,53 @@ async function doUpload() {
 
     const record = { id, name, glb: '', usdz: '', audio: '', video: '', thumbnail: '', createdAt: Date.now() };
     const MB = (n) => (n / (1024 * 1024)).toFixed(1);
-    const LARGE = 8 * 1024 * 1024; // ≥8 MB → chunked multipart (parallel + auto-retry)
+    // Only truly huge files use multipart; everything here is a plain, non-streaming
+    // PUT. We deliberately do NOT pass onUploadProgress: its progress path streams the
+    // request body, which iOS Safari cannot do (ReadableStream uploads unsupported) —
+    // that was the cause of uploads hanging at ~5% forever.
+    const LARGE = 20 * 1024 * 1024;
     let i = 0;
     for (const job of jobs) {
       i++;
       const sizeTxt = `${MB(job.file.size)} MB`;
       const tag = `${job.key.toUpperCase()} (${i}/${jobs.length}) · ${sizeTxt}`;
-      lbl.textContent = `Mengunggah ${tag}…`;
       const pathname = `${base}/${job.key}.${job.ext}`;
 
-      // Watchdog: if no progress event arrives for a while, reassure / warn the user
-      // instead of leaving them staring at a frozen bar.
-      let lastTick = Date.now();
+      // Indeterminate progress: ease the bar across this file's slice while the PUT runs.
+      const sliceStart = 0.05 + ((i - 1) / jobs.length) * 0.85;
+      const sliceEnd = 0.05 + (i / jobs.length) * 0.85;
       const started = Date.now();
-      const watch = setInterval(() => {
-        const idle = (Date.now() - lastTick) / 1000;
-        const elapsed = Math.round((Date.now() - started) / 1000);
-        if (idle > 12) {
-          lbl.textContent = `Masih mengunggah ${tag} — file besar lewat koneksi ini bisa lama (${elapsed}s). Jangan tutup tab.`;
-        }
-      }, 4000);
+      let frac = 0;
+      setBar(sliceStart);
+      const tick = setInterval(() => {
+        frac = Math.min(0.95, frac + 0.02);
+        setBar(sliceStart + (sliceEnd - sliceStart) * frac);
+        const s = Math.round((Date.now() - started) / 1000);
+        lbl.textContent = `Mengunggah ${tag}… ${s}s`;
+      }, 300);
 
+      // Hard timeout so a genuinely stalled request fails clearly instead of hanging.
+      const controller = new AbortController();
+      const killer = setTimeout(() => controller.abort(), 180000);
       try {
         const blob = await upload(pathname, job.file, {
           access: 'public',
           handleUploadUrl: '/api/upload',
           contentType: job.file.type || undefined,
           clientPayload: JSON.stringify({ password: state.password }),
-          multipart: job.file.size >= LARGE, // chunked, parallel, retries failed parts
-          onUploadProgress: (e) => {
-            lastTick = Date.now();
-            const pct = (e.percentage || 0) / 100;
-            const frac = (i - 1 + pct) / jobs.length;
-            setBar(0.05 + frac * 0.85);
-            lbl.textContent = `Mengunggah ${tag} — ${Math.round((e.percentage || 0))}%`;
-          },
+          multipart: job.file.size >= LARGE,
+          abortSignal: controller.signal,
         });
         record[job.key] = blob.url;
+        setBar(sliceEnd);
+      } catch (e2) {
+        if (controller.signal.aborted) {
+          throw new Error(`Unggahan ${job.key.toUpperCase()} kehabisan waktu (3 mnt). Cek koneksi lalu coba lagi.`);
+        }
+        throw e2;
       } finally {
-        clearInterval(watch);
+        clearInterval(tick);
+        clearTimeout(killer);
       }
     }
 
