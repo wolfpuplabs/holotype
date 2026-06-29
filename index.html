@@ -3028,6 +3028,21 @@ function flags(a) {
 
 function renderLibrary() {
   const grid = $('#grid');
+  // Delegated click handling, attached ONCE. Per-button listeners get dropped when
+  // Safari/Google auto-translate rewrites the button text nodes; delegation on the
+  // stable grid container survives that (and any re-render).
+  if (!grid.dataset.bound) {
+    grid.dataset.bound = '1';
+    grid.addEventListener('click', (e) => {
+      const tile = e.target.closest('.tile');
+      if (!tile) return;
+      const a = state.assets.find((x) => x.id === tile.dataset.id);
+      if (!a) return;
+      if (e.target.closest('.del')) { e.stopPropagation(); deleteAsset(a); return; }
+      if (e.target.closest('.act-share')) { openCard(a); return; }
+      if (e.target.closest('.act-view') || e.target.closest('.thumb')) { openViewer(a); return; }
+    });
+  }
   const real = state.assets.filter((a) => !a.demo).length;
   $('#count').textContent = real === 0 ? '1 contoh' : `${real} aset`;
   grid.innerHTML = '';
@@ -3035,6 +3050,7 @@ function renderLibrary() {
   state.assets.forEach((a) => {
     const tile = document.createElement('div');
     tile.className = 'tile' + (a.demo ? ' is-demo' : '');
+    tile.dataset.id = a.id;
     const badges = flags(a).map((f) => `<span class="badge ${f.c}">${f.t}</span>`).join('');
     tile.innerHTML = `
       <button class="del" title="Hapus" aria-label="Hapus aset">
@@ -3049,10 +3065,6 @@ function renderLibrary() {
           <button class="btn sm act-share">Bagikan</button>
         </div>
       </div>`;
-    $('.act-view', tile).addEventListener('click', () => openViewer(a));
-    $('.act-share', tile).addEventListener('click', () => openCard(a));
-    $('.thumb .hit', tile).addEventListener('click', () => openViewer(a));
-    $('.del', tile).addEventListener('click', (e) => { e.stopPropagation(); deleteAsset(a); });
     grid.appendChild(tile);
   });
 
@@ -3135,15 +3147,9 @@ function quickLookAR(usdz) {
 }
 
 function launchAR(a) {
-  if (IS_IOS) {
-    if (a.usdz) { quickLookAR(a.usdz); return; }
-    toast('Untuk AR di iOS, aset ini perlu file USDZ.', 3000);
-    return;
-  }
-  // Android / WebXR devices: model-viewer drives Scene Viewer / WebXR.
-  if (mv) { try { mv.activateAR(); } catch (_) { toast('AR tidak tersedia di perangkat ini'); } return; }
-  loadPreview(a);
-  toast('Menyiapkan AR — setelah model muncul, ketuk "Lihat di AR" lagi', 3200);
+  if (mv) { try { mv.activateAR(); return; } catch (_) {} }
+  if (IS_IOS && a.usdz) { quickLookAR(a.usdz); return; }
+  toast('Tunggu pratinjau 3D selesai dimuat, lalu coba lagi.', 2800);
 }
 
 function openViewer(a) {
@@ -3152,9 +3158,8 @@ function openViewer(a) {
   $('#v-sub').textContent = flags(a).map((f) => f.t).join(' · ');
 
   teardownViewerMV();
-  vHost.innerHTML = viewerStage(a);          // instant, no WebGL
-  $('#v-preview').onclick = () => loadPreview(a);
   $('#v-ar').onclick = () => launchAR(a);
+  loadPreview(a);                              // show the model-viewer preview directly
 
   // audio
   const audio = $('#v-audio');
@@ -3187,9 +3192,8 @@ function audioIcon(label) {
 }
 function hintFor(a) {
   const bits = [];
-  if (IS_IOS) bits.push('“Lihat di AR” membuka Quick Look (butuh USDZ) — ringan, tanpa render 3D di halaman.');
+  if (IS_IOS) bits.push('“Lihat di AR” membuka Quick Look (perlu USDZ untuk AR di iOS).');
   else bits.push('“Lihat di AR” membuka Scene Viewer / WebXR di Android.');
-  bits.push('“Muat pratinjau 3D” menampilkan model di halaman (lebih berat — opsional).');
   if (a.audio) bits.push('Audio diputar di tampilan web ini.');
   if (a.video) bits.push('“AR + Video” menempatkan video sebagai tekstur lewat WebXR (Android).');
   return bits.join(' ');
