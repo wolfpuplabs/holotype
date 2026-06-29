@@ -2563,6 +2563,24 @@ var qrcode = function() {
     width:100%;height:min(56vh,440px);background:#0a0c12;border-radius:16px;
     --poster-color:transparent;display:block;
   }
+  .v-stage{
+    position:relative;width:100%;height:min(56vh,440px);border-radius:16px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(120% 120% at 30% 20%, rgba(124,107,255,.28), transparent 55%),
+      radial-gradient(120% 120% at 80% 90%, rgba(94,231,255,.18), transparent 50%),#0a0c12;
+  }
+  .v-stage img{width:100%;height:100%;object-fit:contain;display:block}
+  .v-stage .ph-mono{font-size:64px}
+  .v-preview-btn{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);min-width:180px;justify-content:center}
+  .v-loading{
+    width:100%;height:min(56vh,440px);border-radius:16px;background:#0a0c12;
+    display:flex;flex-direction:column;gap:13px;align-items:center;justify-content:center;
+    color:var(--muted);font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.12em;
+  }
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.14);
+    border-top-color:var(--cyan);animation:hspin .8s linear infinite}
+  @keyframes hspin{to{transform:rotate(360deg)}}
   .viewer-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
   .viewer-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
   .viewer-actions .btn{flex:1;min-width:130px;justify-content:center}
@@ -3068,30 +3086,75 @@ function thumbInner(a) {
 /* ---------------- viewer ---------------- */
 const vHost = $('#v-host');
 let mv = null;
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+
+function teardownViewerMV() {
+  if (mv) {
+    try { mv.setAttribute('src', ''); } catch (_) {}   // abort any in-flight load
+    try { if (mv.parentNode) mv.remove(); } catch (_) {}
+    mv = null;
+  }
+}
+
+function viewerStage(a) {
+  // Lightweight, NO WebGL. The heavy 3D preview is opt-in via the button below.
+  const inner = a.thumbnail
+    ? `<img src="${a.thumbnail}" alt="">`
+    : `<div class="ph ph-model" style="width:100%;height:100%"><span class="ph-mono">${escapeHtml((a.name || '?').trim().charAt(0).toUpperCase() || '?')}</span><span class="ph-tag">${a.usdz ? 'GLB · USDZ' : 'GLB'}</span></div>`;
+  return `<div class="v-stage">${inner}<button class="btn v-preview-btn" id="v-preview">Muat pratinjau 3D</button></div>`;
+}
+
+function loadPreview(a) {
+  if (!a.glb) { toast('Aset ini tidak punya file GLB'); return; }
+  teardownViewerMV();
+  vHost.innerHTML = '<div class="v-loading"><div class="spinner"></div><span>Memuat 3D…</span></div>';
+  mv = document.createElement('model-viewer');
+  mv.setAttribute('src', a.glb);
+  if (a.usdz) mv.setAttribute('ios-src', a.usdz);
+  mv.setAttribute('camera-controls', '');
+  mv.setAttribute('touch-action', 'pan-y');
+  mv.setAttribute('shadow-intensity', '1');
+  mv.setAttribute('ar', '');
+  mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+  mv.setAttribute('environment-image', 'neutral');
+  if (a.thumbnail) mv.setAttribute('poster', a.thumbnail);
+  mv.addEventListener('load', () => { const l = vHost.querySelector('.v-loading'); if (l) l.remove(); }, { once: true });
+  mv.addEventListener('error', () => { const l = vHost.querySelector('.v-loading'); if (l) l.innerHTML = '<span>Gagal memuat model</span>'; }, { once: true });
+  vHost.appendChild(mv);
+}
+
+// Native AR Quick Look on iOS — opens the USDZ directly, no in-page WebGL at all.
+function quickLookAR(usdz) {
+  const link = document.createElement('a');
+  link.setAttribute('rel', 'ar');
+  link.href = usdz;
+  link.appendChild(document.createElement('img')); // Apple requires a child node
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => link.remove(), 1500);
+}
+
+function launchAR(a) {
+  if (IS_IOS) {
+    if (a.usdz) { quickLookAR(a.usdz); return; }
+    toast('Untuk AR di iOS, aset ini perlu file USDZ.', 3000);
+    return;
+  }
+  // Android / WebXR devices: model-viewer drives Scene Viewer / WebXR.
+  if (mv) { try { mv.activateAR(); } catch (_) { toast('AR tidak tersedia di perangkat ini'); } return; }
+  loadPreview(a);
+  toast('Menyiapkan AR — setelah model muncul, ketuk "Lihat di AR" lagi', 3200);
+}
+
 function openViewer(a) {
   state.current = a;
   $('#v-title').textContent = a.name;
   $('#v-sub').textContent = flags(a).map((f) => f.t).join(' · ');
 
-  vHost.innerHTML = '';
-  mv = document.createElement('model-viewer');
-  mv.setAttribute('src', a.glb || '');
-  if (a.usdz) mv.setAttribute('ios-src', a.usdz);
-  mv.setAttribute('camera-controls', '');
-  mv.setAttribute('touch-action', 'pan-y');
-  mv.setAttribute('shadow-intensity', '1');
-  mv.setAttribute('exposure', '1');
-  mv.setAttribute('ar', '');
-  mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
-  mv.setAttribute('environment-image', 'neutral');
-  if (a.thumbnail) mv.setAttribute('poster', a.thumbnail);
-  vHost.appendChild(mv);
-
-  // AR button → trigger model-viewer's native AR (handles iOS Quick Look + Android Scene Viewer/WebXR)
-  $('#v-ar').onclick = () => {
-    try { mv.activateAR(); }
-    catch (e) { toast('AR tidak tersedia di perangkat / browser ini'); }
-  };
+  teardownViewerMV();
+  vHost.innerHTML = viewerStage(a);          // instant, no WebGL
+  $('#v-preview').onclick = () => loadPreview(a);
+  $('#v-ar').onclick = () => launchAR(a);
 
   // audio
   const audio = $('#v-audio');
@@ -3123,22 +3186,20 @@ function audioIcon(label) {
   return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>${label}`;
 }
 function hintFor(a) {
-  const bits = ['Android membuka WebXR / Scene Viewer, iOS membuka Quick Look (butuh USDZ).'];
+  const bits = [];
+  if (IS_IOS) bits.push('“Lihat di AR” membuka Quick Look (butuh USDZ) — ringan, tanpa render 3D di halaman.');
+  else bits.push('“Lihat di AR” membuka Scene Viewer / WebXR di Android.');
+  bits.push('“Muat pratinjau 3D” menampilkan model di halaman (lebih berat — opsional).');
   if (a.audio) bits.push('Audio diputar di tampilan web ini.');
-  if (a.video) bits.push('“AR + Video” menempatkan video sebagai tekstur lewat WebXR (Android / perangkat yang mendukung).');
+  if (a.video) bits.push('“AR + Video” menempatkan video sebagai tekstur lewat WebXR (Android).');
   return bits.join(' ');
 }
-// stop audio whenever viewer closes
+// free media + WebGL whenever the viewer closes
 $('#m-viewer').addEventListener('click', (e) => { if (e.target.id === 'm-viewer') stopViewerMedia(); });
 $$('#m-viewer [data-close]').forEach((b) => b.addEventListener('click', stopViewerMedia));
 function stopViewerMedia() {
   const a = $('#v-audio'); a.pause();
-  // Destroy the interactive model-viewer on close: frees its WebGL context and
-  // releases any in-progress pointer capture, which otherwise leaves iOS Safari
-  // unable to register taps anywhere on the page after the viewer is closed.
-  try { if (mv && mv.parentNode) mv.remove(); } catch (_) {}
-  mv = null;
-  vHost.innerHTML = '';
+  teardownViewerMV();
 }
 
 /* ---------------- flashcard ---------------- */
