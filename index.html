@@ -3027,11 +3027,34 @@ function renderLibrary() {
     $('.thumb .hit', tile).addEventListener('click', () => openViewer(a));
     $('.del', tile).addEventListener('click', (e) => { e.stopPropagation(); deleteAsset(a); });
     grid.appendChild(tile);
+    hydrateThumb(tile);
   });
 
   if (state.assets.length === 0) {
     grid.innerHTML = `<div class="empty"><div class="big">Belum ada aset</div>Masuk, lalu unggah file GLB pertamamu.</div>`;
   }
+}
+
+// Once a tile's live model has loaded, snapshot it to a static <img> and remove the
+// model-viewer. This caps the number of simultaneous WebGL contexts (iOS drops them
+// when too many exist, which can freeze the page) and removes the canvas entirely so
+// it can never intercept taps meant for the buttons. If the snapshot fails, the live
+// (pointer-events:none) viewer simply stays.
+function hydrateThumb(tile) {
+  const el = tile.querySelector('.thumb model-viewer');
+  if (!el) return;
+  el.addEventListener('load', async () => {
+    try {
+      const blob = await el.toBlob({ mimeType: 'image/png', idealAspect: true });
+      if (!blob) return;
+      const img = new Image();
+      img.alt = '';
+      img.decoding = 'async';
+      img.src = URL.createObjectURL(blob);
+      img.onload = () => setTimeout(() => URL.revokeObjectURL(img.src), 2000);
+      el.replaceWith(img);
+    } catch (_) { /* keep the live viewer */ }
+  }, { once: true });
 }
 
 function escapeHtml(s) {
@@ -3072,7 +3095,7 @@ function openViewer(a) {
   mv.setAttribute('ar', '');
   mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
   mv.setAttribute('environment-image', 'neutral');
-  mv.setAttribute('poster', a.thumbnail || '');
+  if (a.thumbnail) mv.setAttribute('poster', a.thumbnail);
   vHost.appendChild(mv);
 
   // AR button → trigger model-viewer's native AR (handles iOS Quick Look + Android Scene Viewer/WebXR)
@@ -3102,7 +3125,7 @@ function openViewer(a) {
   if (a.video) { vBtn.style.display = ''; vBtn.onclick = () => startVideoAR(a); }
   else vBtn.style.display = 'none';
 
-  $('#v-card').onclick = () => { close('m-viewer'); openCard(a); };
+  $('#v-card').onclick = () => { stopViewerMedia(); close('m-viewer'); openCard(a); };
 
   $('#v-hint').textContent = hintFor(a);
   open('m-viewer');
@@ -3119,7 +3142,15 @@ function hintFor(a) {
 // stop audio whenever viewer closes
 $('#m-viewer').addEventListener('click', (e) => { if (e.target.id === 'm-viewer') stopViewerMedia(); });
 $$('#m-viewer [data-close]').forEach((b) => b.addEventListener('click', stopViewerMedia));
-function stopViewerMedia() { const a = $('#v-audio'); a.pause(); }
+function stopViewerMedia() {
+  const a = $('#v-audio'); a.pause();
+  // Destroy the interactive model-viewer on close: frees its WebGL context and
+  // releases any in-progress pointer capture, which otherwise leaves iOS Safari
+  // unable to register taps anywhere on the page after the viewer is closed.
+  try { if (mv && mv.parentNode) mv.remove(); } catch (_) {}
+  mv = null;
+  vHost.innerHTML = '';
+}
 
 /* ---------------- flashcard ---------------- */
 let cardAsset = null;
