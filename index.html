@@ -2457,6 +2457,15 @@ var qrcode = function() {
     position:absolute;inset:0;display:grid;place-items:center;color:var(--muted-dim);
     font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.2em;
   }
+  .ph.ph-model{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+    background:
+      radial-gradient(120% 120% at 30% 20%, rgba(124,107,255,.30), transparent 55%),
+      radial-gradient(120% 120% at 80% 90%, rgba(94,231,255,.20), transparent 50%);
+  }
+  .ph-mono{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:46px;line-height:1;
+    color:#dfe4f2;text-shadow:0 2px 18px rgba(124,107,255,.45)}
+  .ph-tag{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.2em;color:var(--muted)}
   .tile .body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:11px;flex:1;position:relative;z-index:2}
   .tile .name{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:15.5px;line-height:1.25;
     overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -3027,7 +3036,6 @@ function renderLibrary() {
     $('.thumb .hit', tile).addEventListener('click', () => openViewer(a));
     $('.del', tile).addEventListener('click', (e) => { e.stopPropagation(); deleteAsset(a); });
     grid.appendChild(tile);
-    hydrateThumb(tile);
   });
 
   if (state.assets.length === 0) {
@@ -3040,40 +3048,21 @@ function renderLibrary() {
 // when too many exist, which can freeze the page) and removes the canvas entirely so
 // it can never intercept taps meant for the buttons. If the snapshot fails, the live
 // (pointer-events:none) viewer simply stays.
-function hydrateThumb(tile) {
-  const el = tile.querySelector('.thumb model-viewer');
-  if (!el) return;
-  el.addEventListener('load', async () => {
-    try {
-      const blob = await el.toBlob({ mimeType: 'image/png', idealAspect: true });
-      if (!blob) return;
-      const img = new Image();
-      img.alt = '';
-      img.decoding = 'async';
-      img.src = URL.createObjectURL(blob);
-      img.onload = () => setTimeout(() => URL.revokeObjectURL(img.src), 2000);
-      el.replaceWith(img);
-    } catch (_) { /* keep the live viewer */ }
-  }, { once: true });
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// Thumbnail content: saved image if present; otherwise a live (non-interactive)
-// 3D render of the model so a card/tile never shows an empty "NO IMAGE" box.
-// iOS Safari can't reliably rasterize an offscreen WebGL canvas, so we show the
-// real model instead of a generated PNG.
-function thumbInner(a, opts) {
-  const rotate = opts && opts.rotate ? ' auto-rotate rotation-per-second="18deg"' : '';
+// Library tiles are intentionally pure HTML/CSS — NO live <model-viewer> in the grid.
+// Multiple live WebGL contexts at once overwhelm mobile Safari and freeze input for
+// the whole page. The 3D model is rendered only on demand (Lihat / Bagikan), one at a
+// time, and torn down on close. Tiles show the saved image, or a styled placeholder.
+function thumbInner(a) {
   if (a.thumbnail) {
     return `<img src="${a.thumbnail}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'NO IMAGE'}))">`;
   }
-  if (a.glb) {
-    return `<model-viewer src="${a.glb}" environment-image="neutral" shadow-intensity="1" camera-orbit="25deg 75deg auto" interaction-prompt="none" disable-zoom${rotate} loading="lazy" reveal="auto" style="width:100%;height:100%;background:transparent;--poster-color:transparent;pointer-events:none"></model-viewer>`;
-  }
-  return `<div class="ph">NO IMAGE</div>`;
+  const initial = escapeHtml((a.name || '?').trim().charAt(0).toUpperCase() || '?');
+  const fmt = a.usdz ? 'GLB · USDZ' : 'GLB';
+  return `<div class="ph ph-model"><span class="ph-mono">${initial}</span><span class="ph-tag">${fmt}</span></div>`;
 }
 
 /* ---------------- viewer ---------------- */
@@ -3179,9 +3168,25 @@ function openCard(a) {
   cardAsset = a;
   $('#c-title').textContent = a.name;
   $('#c-name').textContent = a.name;
-  $('#c-pic').innerHTML = a.thumbnail
-    ? `<img src="${a.thumbnail}" alt="" crossorigin="anonymous">`
-    : thumbInner(a, { rotate: true });
+  if (a.thumbnail) {
+    $('#c-pic').innerHTML = `<img src="${a.thumbnail}" alt="" crossorigin="anonymous">`;
+  } else if (a.glb) {
+    // One live model, only while the card is open; torn down on close.
+    $('#c-pic').innerHTML = '';
+    const m = document.createElement('model-viewer');
+    m.setAttribute('src', a.glb);
+    m.setAttribute('environment-image', 'neutral');
+    m.setAttribute('shadow-intensity', '1');
+    m.setAttribute('camera-orbit', '25deg 75deg auto');
+    m.setAttribute('interaction-prompt', 'none');
+    m.setAttribute('auto-rotate', '');
+    m.setAttribute('rotation-per-second', '18deg');
+    m.setAttribute('disable-zoom', '');
+    m.style.cssText = 'width:100%;height:100%;background:transparent;--poster-color:transparent;pointer-events:none';
+    $('#c-pic').appendChild(m);
+  } else {
+    $('#c-pic').innerHTML = '<div class="ph">NO IMAGE</div>';
+  }
   $('#c-badges').innerHTML = flags(a).filter((f) => f.t !== 'DEMO').map((f) => `<span class="badge ${f.c}">${f.t}</span>`).join('');
   const url = shareUrl(a);
   $('#c-link').value = url;
@@ -3194,7 +3199,7 @@ function openCard(a) {
   } catch (_) {}
 
   $('#c-copy').onclick = () => copyText(url, 'Tautan disalin');
-  $('#c-open').onclick = () => { close('m-card'); openViewer(a); };
+  $('#c-open').onclick = () => { clearCardMedia(); close('m-card'); openViewer(a); };
   $('#c-save').onclick = () => saveCardImage(a);
   open('m-card');
 }
@@ -3206,6 +3211,14 @@ fc.addEventListener('pointermove', (e) => {
   fc.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
 });
 fc.addEventListener('pointerleave', () => { fc.style.setProperty('--mx', '50%'); fc.style.setProperty('--my', '40%'); });
+
+// Destroy the card's live model when the card closes (frees its WebGL context).
+function clearCardMedia() {
+  const m = $('#c-pic') && $('#c-pic').querySelector('model-viewer');
+  if (m) { try { m.remove(); } catch (_) {} }
+}
+$('#m-card').addEventListener('click', (e) => { if (e.target.id === 'm-card') clearCardMedia(); });
+$$('#m-card [data-close]').forEach((b) => b.addEventListener('click', clearCardMedia));
 
 function copyText(text, ok) {
   navigator.clipboard?.writeText(text).then(() => toast(ok)).catch(() => {
